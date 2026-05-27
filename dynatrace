@@ -1,0 +1,26 @@
+# Stage 1: Downloader
+FROM --platform=$BUILDPLATFORM alpine:latest AS agent-downloader
+ARG DT_API_URL
+ARG DT_API_TOKEN
+ARG DT_ONEAGENT_OPTIONS="flavor=default&include=all"
+
+# We explicitly ask for the aarch64 (ARM64) binary
+RUN apk add --no-cache curl tar && \
+    curl -L -H "Authorization: Api-Token $DT_API_TOKEN" \
+    "$DT_API_URL/v1/deployment/installer/agent/unix/paas/latest?arch=aarch64&$DT_ONEAGENT_OPTIONS" \
+    -o /tmp/paas-agent.zip && \
+    mkdir -p /opt/dynatrace/oneagent && \
+    unzip -d /opt/dynatrace/oneagent /tmp/paas-agent.zip
+
+# Stage 2: Final App Image (ARM64)
+FROM --platform=linux/arm64 mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+# Copy the agent from the downloader stage
+COPY --from=agent-downloader /opt/dynatrace/oneagent /opt/dynatrace/oneagent
+
+# Tell the OS to load the Dynatrace agent into the app process
+ENV LD_PRELOAD=/opt/dynatrace/oneagent/agent/lib64/liboneagentproc.so
+
+COPY . .
+ENTRYPOINT ["dotnet", "YourApp.dll"]
