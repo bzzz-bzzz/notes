@@ -1,0 +1,14 @@
+#!/bin/bash
+echo "=== Setting up Python Virtual Environment ==="
+python3 -m venv .ash_venv
+source .ash_venv/bin/activate
+pip install --upgrade pip
+
+echo "=== Installing AWS Automated Security Helper (v3) ==="
+# Pinning to a major v3 release as recommended for CI stability
+pip install git+https://github.com/awslabs/automated-security-helper.git@v3
+
+echo "=== Running Security Scan ==="
+# --mode container runs the full suite including heavy non-python scanners
+# --fail-on-findings halts the pipeline if vulnerabilities are discovered
+ash --mode container --fail-on-findings --output-dir ./ash_output
